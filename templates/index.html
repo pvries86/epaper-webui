@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>e-Paper Web UI</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 800px; }
+    label { display: block; margin-top: 10px; }
+    input[type="range"] { width: 100%; }
+    #canvas-box { width: 800px; height: 480px; border: 2px dashed #ccc; margin-top: 20px; }
+    canvas { width: 100%; height: 100%; }
+    #overlayControls { margin-left: 1rem; margin-top: 10px; padding: 10px; border-left: 3px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h2>Upload Image to e-Paper</h2>
+
+  <form method="post" enctype="multipart/form-data" id="uploadForm">
+    <label>Select image:</label>
+    <input type="file" name="image" accept="image/*" id="imageInput" required>
+
+    <label>Contrast: <span id="contrastVal">1.8</span></label>
+    <input type="range" name="contrast" id="contrastSlider" min="0.5" max="3" step="0.1" value="1.8">
+
+    <label>Sharpness: <span id="sharpnessVal">1.0</span></label>
+    <input type="range" name="sharpness" id="sharpnessSlider" min="0" max="3" step="0.1" value="1.0">
+
+    <label>Green Bias Factor: <span id="greenBiasVal">1.3</span></label>
+    <input type="range" name="green_bias" id="greenBiasSlider" min="1.0" max="3" step="0.1" value="1.3">
+
+    <label>Resize mode:</label>
+    <label><input type="radio" name="resizemode" value="pad" checked> Pad</label>
+    <label><input type="radio" name="resizemode" value="crop"> Crop</label>
+
+    <hr>
+    <label><input type="checkbox" name="show_overlay" id="showOverlay"> Show Custom Text Overlay</label>
+
+    <div id="overlayControls" style="display: none;">
+      <label for="overlay_text">Overlay Text:</label>
+      <input type="text" name="overlay_text" id="overlay_text" placeholder="e.g. Hello ePaper">
+
+      <label for="overlay_position">Overlay Position:</label>
+      <select name="overlay_position" id="overlay_position">
+        <option value="top-left">Top Left</option>
+        <option value="top-right">Top Right</option>
+        <option value="bottom-left">Bottom Left</option>
+        <option value="bottom-right">Bottom Right</option>
+      </select>
+
+      <label for="overlay_font_size">Font Size:</label>
+      <input type="number" name="overlay_font_size" id="overlay_font_size" value="18" min="6" max="48">
+
+      <label for="overlay_font_color">Font Color:</label>
+      <input type="color" name="overlay_font_color" id="overlay_font_color" value="#000000">
+    </div>
+
+    <br><button type="submit">Send to Display</button>
+  </form>
+
+  <div id="canvas-box">
+    <canvas id="previewCanvas" width="800" height="480"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("previewCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const contrastSlider = document.getElementById("contrastSlider");
+    const sharpnessSlider = document.getElementById("sharpnessSlider");
+    const greenBiasSlider = document.getElementById("greenBiasSlider");
+    const resizeModeRadios = document.querySelectorAll('input[name="resizemode"]');
+    const showOverlay = document.getElementById("showOverlay");
+    const overlayControls = document.getElementById("overlayControls");
+    const overlayText = document.getElementById("overlay_text");
+    const overlayFontSize = document.getElementById("overlay_font_size");
+    const overlayFontColor = document.getElementById("overlay_font_color");
+    const overlayPosition = document.getElementById("overlay_position");
+
+    let image = new Image();
+
+    function updateLabels() {
+      document.getElementById("contrastVal").textContent = contrastSlider.value;
+      document.getElementById("sharpnessVal").textContent = sharpnessSlider.value;
+      document.getElementById("greenBiasVal").textContent = greenBiasSlider.value;
+    }
+
+    [contrastSlider, sharpnessSlider, greenBiasSlider].forEach(el =>
+      el.addEventListener("input", () => {
+        updateLabels();
+        drawPreview();
+      })
+    );
+
+    resizeModeRadios.forEach(r => r.addEventListener("change", drawPreview));
+
+    [overlayText, overlayFontSize, overlayFontColor, overlayPosition].forEach(el =>
+      el.addEventListener("input", drawPreview)
+    );
+
+    showOverlay.addEventListener("change", () => {
+      overlayControls.style.display = showOverlay.checked ? "block" : "none";
+      drawPreview();
+    });
+
+    document.getElementById("imageInput").addEventListener("change", function () {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        image.onload = drawPreview;
+        image.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function drawPreview() {
+      if (!image.src) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const tmpCanvas = document.createElement("canvas");
+      const tmpCtx = tmpCanvas.getContext("2d");
+
+      const aspectRatio = image.width / image.height;
+      let drawWidth, drawHeight;
+
+      if (document.querySelector("input[name='resizemode']:checked").value === "crop") {
+        const targetRatio = canvas.width / canvas.height;
+        if (aspectRatio > targetRatio) {
+          drawHeight = canvas.height;
+          drawWidth = drawHeight * aspectRatio;
+        } else {
+          drawWidth = canvas.width;
+          drawHeight = drawWidth / aspectRatio;
+        }
+      } else {
+        if (aspectRatio > canvas.width / canvas.height) {
+          drawWidth = canvas.width;
+          drawHeight = canvas.width / aspectRatio;
+        } else {
+          drawHeight = canvas.height;
+          drawWidth = canvas.height * aspectRatio;
+        }
+      }
+
+      tmpCanvas.width = drawWidth;
+      tmpCanvas.height = drawHeight;
+      tmpCtx.drawImage(image, 0, 0, drawWidth, drawHeight);
+
+      let imageData = tmpCtx.getImageData(0, 0, drawWidth, drawHeight);
+      const data = imageData.data;
+      const contrast = parseFloat(contrastSlider.value);
+      const greenBias = parseFloat(greenBiasSlider.value);
+
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i], g = data[i + 1], b = data[i + 2];
+
+        if (g > r * greenBias && g > b * greenBias && g > 100) {
+          g = 255; r = 0; b = 0;
+        }
+
+        r = (((r / 255 - 0.5) * contrast) + 0.5) * 255;
+        g = (((g / 255 - 0.5) * contrast) + 0.5) * 255;
+        b = (((b / 255 - 0.5) * contrast) + 0.5) * 255;
+
+        data[i] = Math.min(255, Math.max(0, r));
+        data[i + 1] = Math.min(255, Math.max(0, g));
+        data[i + 2] = Math.min(255, Math.max(0, b));
+      }
+
+      tmpCtx.putImageData(imageData, 0, 0);
+
+      const dx = (canvas.width - drawWidth) / 2;
+      const dy = (canvas.height - drawHeight) / 2;
+      ctx.drawImage(tmpCanvas, dx, dy, drawWidth, drawHeight);
+
+      if (showOverlay.checked && overlayText.value.trim()) {
+        ctx.font = `${overlayFontSize.value}px sans-serif`;
+        ctx.fillStyle = overlayFontColor.value;
+        ctx.textBaseline = 'top';
+
+        const text = overlayText.value;
+        const textMetrics = ctx.measureText(text);
+        let x = 10, y = 10;
+
+        const pos = overlayPosition.value;
+        if (pos.includes('right')) x = canvas.width - textMetrics.width - 10;
+        if (pos.includes('bottom')) y = canvas.height - parseInt(overlayFontSize.value) - 10;
+
+        ctx.fillStyle = overlayFontColor.value;
+        ctx.fillText(text, x, y);
+      }
+    }
+  </script>
+</body>
+</html>
