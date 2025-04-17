@@ -1,11 +1,21 @@
-from flask import Flask, request, render_template, send_from_directory
+from flask import Flask, request, render_template, send_from_directory, jsonify
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 import os
 import uuid
 import socket
+import base64
+from io import BytesIO
 from waveshare_epd import epd7in3e
+from huggingface_hub import InferenceClient
+from dotenv import load_dotenv
 
-# === CONFIG ===
+load_dotenv()
+
+client = InferenceClient(
+    provider="hf-inference",
+    api_key=os.getenv("HF_API_KEY")
+)
+
 UPLOAD_FOLDER = "uploads"
 PROCESSED_FOLDER = "processed"
 RESOLUTION = (800, 480)
@@ -17,7 +27,6 @@ app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
-# === Get device IP ===
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -29,7 +38,6 @@ def get_ip():
         s.close()
     return IP
 
-# === Overlay custom text on image ===
 def draw_ip_overlay(img, text, position, font_size, font_color):
     draw = ImageDraw.Draw(img)
     try:
@@ -49,11 +57,10 @@ def draw_ip_overlay(img, text, position, font_size, font_color):
     else:
         pos = (10, 10)
 
-#    draw.rectangle([pos, (pos[0] + text_width, pos[1] + text_height)], fill=(255, 255, 255))
+    # Optional shadow
+    draw.text((pos[0] + 1, pos[1] + 1), text, font=font, fill=(0, 0, 0))
     draw.text(pos, text, font=font, fill=font_color)
     return img
-
-# === Resize with smart crop or padding based on threshold
 
 def resize_and_fill(img, target_size=(800, 480), background_color=(255, 255, 255), pad_threshold=0.1, use_padding=True):
     img_ratio = img.width / img.height
@@ -87,7 +94,6 @@ def resize_and_fill(img, target_size=(800, 480), background_color=(255, 255, 255
 
     return img
 
-# === Green bias function
 def apply_green_bias(img, green_bias_factor=1.3, green_min=100):
     pixels = img.load()
     for y in range(img.height):
@@ -96,8 +102,6 @@ def apply_green_bias(img, green_bias_factor=1.3, green_min=100):
             if g > r * green_bias_factor and g > b * green_bias_factor and g > green_min:
                 pixels[x, y] = (0, 255, 0)
     return img
-
-# === Process image
 
 def process_image(path, contrast=1.8, sharpness=1.0, green_bias_factor=1.3, green_min=100, use_padding=True):
     img = resize_and_fill(Image.open(path).convert("RGB"), use_padding=use_padding)
@@ -108,8 +112,6 @@ def process_image(path, contrast=1.8, sharpness=1.0, green_bias_factor=1.3, gree
     processed_path = os.path.join(PROCESSED_FOLDER, processed_filename)
     img.save(processed_path)
     return processed_path
-
-# === Send to e-Paper
 
 def send_to_display(img_path, show_overlay=False, overlay_position='top-left', overlay_font_size=18, overlay_font_color=(0, 0, 0), overlay_text=""):
     img = Image.open(img_path).resize((epd.width, epd.height)).convert("RGB")
@@ -146,6 +148,23 @@ def index():
 
     return render_template('index.html')
 
+@app.route('/generate', methods=['POST'])
+def generate():
+    prompt = request.form.get("prompt", "A futuristic city")
+    try:
+        image = client.text_to_image(
+            prompt,
+            model="black-forest-labs/FLUX.1-dev",
+            height=480,
+            width=800
+        )
+        filename = f"flux_{uuid.uuid4().hex}.png"
+        path = os.path.join(UPLOAD_FOLDER, filename)
+        image.save(path)
+        return jsonify({"filename": filename})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
@@ -157,12 +176,9 @@ def processed_file(filename):
 if __name__ == '__main__':
     epd = epd7in3e.EPD()
     epd.init()
-    #epd.Clear()
-
-    # Show IP address on startup only
     startup_img = Image.new("RGB", (epd.width, epd.height), (255, 255, 255))
     ip_text = get_ip()
     startup_img = draw_ip_overlay(startup_img, f"IP: {ip_text}", 'top-left', 24, (0, 0, 0))
     epd.display(epd.getbuffer(startup_img))
-
     app.run(host='0.0.0.0', port=5000, debug=False)
+
