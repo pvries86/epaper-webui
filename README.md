@@ -1,99 +1,142 @@
 # ePaper Web UI
 
-A lightweight Flask-based web interface for uploading, previewing, and displaying images on Waveshare Spectra 6 e-Paper displays (800x480), with support for contrast/sharpness adjustments, green color biasing, and text overlays.
+A Flask-based web interface to upload or generate images for your Waveshare ePaper display.
 
-## Features
+Supports:
+- Uploading and previewing images
+- Real-time contrast, sharpness, and green bias adjustment
+- Text overlay (with positioning and styling)
+- Image resizing modes: pad or crop
+- Image generation from prompt using Hugging Face FLUX.1-dev
 
-- Upload and preview images in real-time
-- Adjustable contrast, sharpness, and green bias
-- Smart resizing with pad or crop mode
-- Optional overlay text with position, size, and color control
-- IP address auto-displayed on startup
-- Responsive web UI with live canvas preview
-- Runs as a `systemd` service for automatic startup on boot
+---
 
-## Hardware Requirements
+## 🚀 Features
 
-- Raspberry Pi (tested on Pi 3 and 4)
-- Waveshare 7.3" e-Paper HAT (Spectra 6)
-- SPI enabled on Raspberry Pi
+- Web-based upload interface with live canvas preview
+- Overlay text (custom position, size, and color)
+- Automatic display of device IP on boot
+- Integration with Hugging Face for prompt-to-image generation
 
-## Installation
+---
 
-### 1. Clone the Repository
+## 📦 Prerequisites
 
+- Python 3.9+
+- Flask
+- Pillow
+- python-dotenv
+- huggingface_hub
+- waveshare_epd driver (included locally)
+
+Install dependencies:
 ```bash
-git clone https://github.com/your-username/epaper-webui.git
-cd epaper-webui
+pip install -r requirements.txt
 ```
 
-### 2. Install Dependencies
-
-```bash
-sudo apt update
-sudo apt install python3-pip python3-flask python3-pil git
-pip3 install -r requirements.txt
+### Requirements File Example:
+```
+flask
+pillow
+python-dotenv
+huggingface_hub
 ```
 
-### 3. Enable SPI (if not already)
+---
 
+## 🖼️ Usage
+
+### Run the server
 ```bash
-sudo raspi-config nonint do_spi 0
+python3 app.py
 ```
 
-### 4. Set Up as a systemd Service
+Then go to `http://<your-ip>:5000` in your browser.
 
-Create `/etc/systemd/system/epaper-webui.service`:
+---
 
-```ini
+## 🤖 Generate Images from Prompt (Hugging Face)
+
+1. Create a `.env` file in your project folder:
+```
+HF_API_KEY=your_huggingface_api_key_here
+```
+
+2. Or copy the example:
+```bash
+cp .env.example .env
+```
+
+The model used is: `black-forest-labs/FLUX.1-dev`
+
+---
+
+## 🔧 Optional: Systemd Setup for Auto-start
+
+Create a file at `/etc/systemd/system/epaper-webui.service`:
+```
 [Unit]
 Description=ePaper Web UI Flask App
-After=network-online.target
-Wants=network-online.target
+After=network.target
 
 [Service]
 ExecStart=/usr/bin/python3 /home/pi/epaper-webui/app.py
 WorkingDirectory=/home/pi/epaper-webui
-User=pi
 Restart=always
-Environment=FLASK_ENV=production
+User=pi
+Environment=HF_API_KEY=your_key_here
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Replace `/home/pi/epaper-webui` with your actual path if different.
-
-Then enable and start:
-
+Then enable and start it:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable epaper-webui
 sudo systemctl start epaper-webui
 ```
 
-## Usage
+---
 
-- Visit `http://<your-pi-ip>:5000`
-- Upload an image
-- Adjust image settings
-- Optionally add overlay text
-- Click “Send to Display”
+## 📁 Folder Structure
 
-The IP address of the Raspberry Pi will be shown on the ePaper screen automatically at boot.
+```
+epaper-webui/
+├── app.py
+├── templates/
+│   └── index.html
+├── static/
+├── uploads/
+├── processed/
+├── waveshare_epd/
+├── .env.example
+├── README.md
+└── requirements.txt
+```
 
-## Screenshots
+---
 
-*(Add screenshots of the web interface and display output here)*
+## 🔐 Security
 
-## TODO
+- Your API keys should go in a `.env` file (not committed)
+- `.env` is excluded via `.gitignore`
 
-- Multi-line text overlays
-- Font selection
-- QR code overlay
-- Image rotation
-- Persistent history
+---
 
-## License
+## ✅ TODO / Roadmap
 
-MIT License.
+- [ ] Live filter previews with sliders
+- [ ] Overlay font choices
+- [ ] Batch image processing
+- [ ] Schedule or rotate image sets
+
+---
+
+## 📜 License
+
+MIT. See LICENSE file.
+
+---
+
+Made with ❤️ and pixels.
