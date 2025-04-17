@@ -17,3 +17,4 @@ processed/
 # Virtual environments
 venv/
 .env/
+.env
