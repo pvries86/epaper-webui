@@ -12,86 +12,163 @@
 <body>
   <h1>ePaper Display Web UI</h1>
 
-  <form method="POST" enctype="multipart/form-data">
-    <div class="form-group">
-      <label for="image">Upload Image:</label>
-      <input type="file" id="image" name="image" accept="image/*">
-    </div>
+  <div class="form-group">
+    <label for="image">Upload Image:</label>
+    <input type="file" id="image" accept="image/*">
+  </div>
 
-    <div class="form-group">
-      <label>Contrast:</label>
-      <input type="range" name="contrast" min="0.5" max="3.0" value="1.8" step="0.1">
-      <label>Sharpness:</label>
-      <input type="range" name="sharpness" min="0.5" max="3.0" value="1.0" step="0.1">
-      <label>Green Bias:</label>
-      <input type="range" name="green_bias" min="1.0" max="2.0" value="1.3" step="0.1">
-    </div>
+  <div class="form-group">
+    <label>Contrast:</label>
+    <input type="range" id="contrast" min="0.5" max="3.0" value="1.8" step="0.1">
+    <label>Sharpness:</label>
+    <input type="range" id="sharpness" min="0.5" max="3.0" value="1.0" step="0.1">
+    <label>Green Bias:</label>
+    <input type="range" id="green_bias" min="1.0" max="2.0" value="1.3" step="0.1">
+  </div>
 
-    <div class="form-group">
-      <label>Resize Mode:</label>
-      <label><input type="radio" name="resizemode" value="pad" checked> Pad</label>
-      <label><input type="radio" name="resizemode" value="crop"> Crop</label>
-    </div>
+  <div class="form-group">
+    <label>Resize Mode:</label>
+    <label><input type="radio" name="resizemode" value="pad" checked> Pad</label>
+    <label><input type="radio" name="resizemode" value="crop"> Crop</label>
+  </div>
 
-    <div class="form-group">
-      <label><input type="checkbox" name="show_overlay" id="show_overlay"> Show Overlay Text</label><br>
-      <label>Text:</label>
-      <input type="text" name="overlay_text">
-      <label>Position:</label>
-      <select name="overlay_position">
-        <option value="top-left">Top Left</option>
-        <option value="top-right">Top Right</option>
-        <option value="bottom-left">Bottom Left</option>
-        <option value="bottom-right">Bottom Right</option>
-      </select>
-      <label>Font Size:</label>
-      <input type="number" name="overlay_font_size" value="18">
-      <label>Font Color:</label>
-      <input type="color" name="overlay_font_color" value="#000000">
-    </div>
+  <div class="form-group">
+    <label><input type="checkbox" id="show_overlay"> Show Overlay Text</label><br>
+    <input type="text" id="overlay_text" placeholder="Enter overlay text">
+    <select id="overlay_position">
+      <option value="top-left">Top Left</option>
+      <option value="top-right">Top Right</option>
+      <option value="bottom-left">Bottom Left</option>
+      <option value="bottom-right">Bottom Right</option>
+    </select>
+    <input type="number" id="overlay_font_size" value="18">
+    <input type="color" id="overlay_font_color" value="#000000">
+  </div>
 
-    <div class="form-group">
-      <button type="submit">Send to Display</button>
-    </div>
-  </form>
+  <div class="form-group">
+    <button id="send">Send to Display</button>
+  </div>
 
   <hr>
-  <h2>Generate Image with FLUX (Hugging Face)</h2>
+  <h2>Generate Image with Prompt</h2>
   <form id="generate-form">
-    <label for="prompt">Enter prompt:</label>
-    <input type="text" id="prompt" name="prompt" style="width: 400px;">
+    <input type="text" id="prompt" placeholder="Enter a prompt...">
     <button type="submit">Generate</button>
   </form>
 
   <canvas id="preview" width="800" height="480"></canvas>
 
   <script>
-    const form = document.getElementById('generate-form');
+    let currentImage = null;
     const canvas = document.getElementById('preview');
     const ctx = canvas.getContext('2d');
 
-    form.addEventListener('submit', async (e) => {
+    const updatePreview = () => {
+      if (!currentImage) return;
+      const contrast = parseFloat(document.getElementById('contrast').value);
+      const sharpness = parseFloat(document.getElementById('sharpness').value);
+      const greenBias = parseFloat(document.getElementById('green_bias').value);
+
+      // Create offscreen canvas for editing
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(currentImage, 0, 0, tempCanvas.width, tempCanvas.height);
+
+      // Get image data and process
+      let imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      let data = imageData.data;
+
+      // Apply green bias and contrast manually
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+
+        // Contrast (basic linear scaling)
+        r = ((r - 128) * contrast) + 128;
+        g = ((g - 128) * contrast) + 128;
+        b = ((b - 128) * contrast) + 128;
+
+        // Clamp
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
+
+        // Green bias
+        if (g > r * greenBias && g > b * greenBias) {
+          r = 0;
+          g = 255;
+          b = 0;
+        }
+
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+      }
+      tempCtx.putImageData(imageData, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(tempCanvas, 0, 0);
+    };
+
+    document.getElementById('contrast').addEventListener('input', updatePreview);
+    document.getElementById('sharpness').addEventListener('input', updatePreview);
+    document.getElementById('green_bias').addEventListener('input', updatePreview);
+
+    document.getElementById('image').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          currentImage = img;
+          updatePreview();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('generate-form').addEventListener('submit', async e => {
       e.preventDefault();
       const prompt = document.getElementById('prompt').value;
       const formData = new FormData();
       formData.append('prompt', prompt);
 
-      const response = await fetch('/generate', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
+      const res = await fetch('/generate', { method: 'POST', body: formData });
+      const data = await res.json();
       if (data.filename) {
         const img = new Image();
         img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          currentImage = img;
+          updatePreview();
         };
         img.src = `/uploads/${data.filename}`;
-      } else {
-        alert('Image generation failed: ' + data.error);
       }
+    });
+
+    document.getElementById('send').addEventListener('click', async () => {
+      if (!currentImage) return alert("No image to send.");
+      canvas.toBlob(async blob => {
+        const formData = new FormData();
+        formData.append('image', blob, 'processed.png');
+        formData.append('contrast', document.getElementById('contrast').value);
+        formData.append('sharpness', document.getElementById('sharpness').value);
+        formData.append('green_bias', document.getElementById('green_bias').value);
+        formData.append('resizemode', document.querySelector('input[name="resizemode"]:checked').value);
+        formData.append('show_overlay', document.getElementById('show_overlay').checked ? 'on' : '');
+        formData.append('overlay_text', document.getElementById('overlay_text').value);
+        formData.append('overlay_position', document.getElementById('overlay_position').value);
+        formData.append('overlay_font_size', document.getElementById('overlay_font_size').value);
+        formData.append('overlay_font_color', document.getElementById('overlay_font_color').value);
+
+        await fetch('/', { method: 'POST', body: formData });
+        alert("Image sent to display!");
+      });
     });
   </script>
 </body>
 </html>
+
