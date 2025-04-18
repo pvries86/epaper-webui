@@ -58,8 +58,8 @@ def draw_ip_overlay(img, text, position, font_size, font_color):
         pos = (10, 10)
 
     # Optional shadow
-    draw.text((pos[0] + 1, pos[1] + 1), text, font=font, fill=(0, 0, 0))
-    draw.text(pos, text, font=font, fill=font_color)
+    #draw.text((pos[0] + 1, pos[1] + 1), text, font=font, fill=(0, 0, 0))
+    #draw.text(pos, text, font=font, fill=font_color)
     return img
 
 def resize_and_fill(img, target_size=(800, 480), background_color=(255, 255, 255), pad_threshold=0.1, use_padding=True):
