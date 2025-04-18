@@ -18,6 +18,11 @@
   </div>
 
   <div class="form-group">
+    <label for="browse_images">Or Select Previous:</label>
+    <select id="browse_images"></select>
+  </div>
+
+  <div class="form-group">
     <label>Contrast:</label>
     <input type="range" id="contrast" min="0.5" max="3.0" value="1.8" step="0.1">
     <label>Sharpness:</label>
@@ -63,40 +68,43 @@
     const canvas = document.getElementById('preview');
     const ctx = canvas.getContext('2d');
 
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    }
+
     const updatePreview = () => {
       if (!currentImage) return;
       const contrast = parseFloat(document.getElementById('contrast').value);
       const sharpness = parseFloat(document.getElementById('sharpness').value);
       const greenBias = parseFloat(document.getElementById('green_bias').value);
 
-      // Create offscreen canvas for editing
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext('2d');
       tempCtx.drawImage(currentImage, 0, 0, tempCanvas.width, tempCanvas.height);
 
-      // Get image data and process
       let imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
       let data = imageData.data;
 
-      // Apply green bias and contrast manually
       for (let i = 0; i < data.length; i += 4) {
         let r = data[i];
         let g = data[i + 1];
         let b = data[i + 2];
 
-        // Contrast (basic linear scaling)
         r = ((r - 128) * contrast) + 128;
         g = ((g - 128) * contrast) + 128;
         b = ((b - 128) * contrast) + 128;
 
-        // Clamp
         r = Math.max(0, Math.min(255, r));
         g = Math.max(0, Math.min(255, g));
         b = Math.max(0, Math.min(255, b));
 
-        // Green bias
         if (g > r * greenBias && g > b * greenBias) {
           r = 0;
           g = 255;
@@ -107,14 +115,37 @@
         data[i + 1] = g;
         data[i + 2] = b;
       }
+
       tempCtx.putImageData(imageData, 0, 0);
+
+      if (document.getElementById('show_overlay').checked) {
+        const text = document.getElementById('overlay_text').value;
+        const position = document.getElementById('overlay_position').value;
+        const fontSize = parseInt(document.getElementById('overlay_font_size').value);
+        const color = hexToRgb(document.getElementById('overlay_font_color').value);
+        tempCtx.font = `${fontSize}px sans-serif`;
+        tempCtx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+        tempCtx.textBaseline = 'top';
+
+        const textWidth = tempCtx.measureText(text).width;
+        let x = 10, y = 10;
+        if (position.includes('right')) x = canvas.width - textWidth - 10;
+        if (position.includes('bottom')) y = canvas.height - fontSize - 10;
+
+        tempCtx.shadowColor = "rgba(0,0,0,0.3)";
+        tempCtx.shadowOffsetX = 1;
+        tempCtx.shadowOffsetY = 1;
+        tempCtx.shadowBlur = 1;
+        tempCtx.fillText(text, x, y);
+      }
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(tempCanvas, 0, 0);
     };
 
-    document.getElementById('contrast').addEventListener('input', updatePreview);
-    document.getElementById('sharpness').addEventListener('input', updatePreview);
-    document.getElementById('green_bias').addEventListener('input', updatePreview);
+    ["contrast", "sharpness", "green_bias", "overlay_text", "overlay_position", "overlay_font_size", "overlay_font_color", "show_overlay"].forEach(id => {
+      document.getElementById(id).addEventListener('input', updatePreview);
+    });
 
     document.getElementById('image').addEventListener('change', e => {
       const file = e.target.files[0];
@@ -131,6 +162,29 @@
       reader.readAsDataURL(file);
     });
 
+    async function loadFileList() {
+      const res = await fetch('/list_uploads');
+      const files = await res.json();
+      const dropdown = document.getElementById('browse_images');
+      dropdown.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join('');
+      if (files.length > 0) loadSelectedImage(files[0]);
+    }
+
+    function loadSelectedImage(filename) {
+      const img = new Image();
+      img.onload = () => {
+        currentImage = img;
+        updatePreview();
+      };
+      img.src = `/uploads/${filename}`;
+    }
+
+    document.getElementById('browse_images').addEventListener('change', e => {
+      loadSelectedImage(e.target.value);
+    });
+
+    loadFileList();
+
     document.getElementById('generate-form').addEventListener('submit', async e => {
       e.preventDefault();
       const prompt = document.getElementById('prompt').value;
@@ -144,6 +198,7 @@
         img.onload = () => {
           currentImage = img;
           updatePreview();
+          loadFileList();
         };
         img.src = `/uploads/${data.filename}`;
       }
@@ -171,4 +226,3 @@
   </script>
 </body>
 </html>
-

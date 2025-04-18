@@ -173,6 +173,11 @@ def uploaded_file(filename):
 def processed_file(filename):
     return send_from_directory(PROCESSED_FOLDER, filename)
 
+@app.route('/list_uploads')
+def list_uploads():
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    return jsonify(sorted(files))
+
 if __name__ == '__main__':
     epd = epd7in3e.EPD()
     epd.init()
