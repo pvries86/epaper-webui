@@ -8,7 +8,6 @@
     canvas { border: 1px solid #aaa; display: block; margin-top: 10px; }
     .form-group { margin-bottom: 1em; }
     .slider-reset { margin-left: 1em; }
-    label > span { margin-left: 0.5em; color: #555; }
   </style>
 </head>
 <body>
@@ -25,22 +24,17 @@
   </div>
 
   <div class="form-group" id="slider-group">
-    <label>Contrast:
-      <input type="range" id="contrast" min="0.0" max="3.0" value="1.0" step="0.1">
-      <span id="contrast_val">1.0</span>
-    </label><br>
-    <label>Brightness:
-      <input type="range" id="brightness" min="0.0" max="2.0" value="1.0" step="0.1">
-      <span id="brightness_val">1.0</span>
-    </label><br>
-    <label>Saturation:
-      <input type="range" id="saturation" min="0.0" max="2.0" value="1.0" step="0.1">
-      <span id="saturation_val">1.0</span>
-    </label><br>
-    <label>Sharpness:
-      <input type="range" id="sharpness" min="0.0" max="5.0" value="1.0" step="0.1">
-      <span id="sharpness_val">1.0</span>
-    </label><br>
+    <label>Contrast:</label>
+    <input type="range" id="contrast" min="0.0" max="3.0" value="1.0" step="0.1">
+    <label>Brightness:</label>
+    <input type="range" id="brightness" min="0.0" max="2.0" value="1.0" step="0.1">
+    <label>Saturation:</label>
+    <input type="range" id="saturation" min="0.0" max="2.0" value="1.0" step="0.1">
+    <label>Sharpness:</label>
+    <input type="range" id="sharpness" min="0.0" max="5.0" value="1.0" step="0.1">
+    <label>Green Bias:</label>
+    <!-- inverted logic: higher = STRONGER green force -->
+    <input type="range" id="green_bias" min="0.0" max="2.0" value="0.0" step="0.05">
     <button type="button" id="reset_sliders" class="slider-reset">Reset</button>
   </div>
 
@@ -70,7 +64,7 @@
   <hr>
   <h2>Generate Image with Prompt</h2>
   <form id="generate-form">
-    <input type="text" id="prompt" placeholder="Enter a prompt..." value="&#123;SUBJECT&#125; &#8212; minimalist screen-print poster, flat fills, bold black outlines, high-contrast shading, spot-colour palette of pure white, deep black, saturated fire-red (&#35;FF0000), bright canary-yellow (&#35;FFFF00) and strong royal-blue (&#35;0000FF) ONLY, no gradients or texture, clean vector style, 800&#215;480 composition, generous negative space, ultra-sharp focus">
+    <input type="text" id="prompt" placeholder="Enter a prompt...">
     <button type="submit">Generate</button>
   </form>
 
@@ -79,14 +73,15 @@
   <script>
     // === Global Elements & Helpers ===
     let currentImage = null;
-    const canvas = document.getElementById('preview');
-    const ctx    = canvas.getContext('2d');
+    const canvas  = document.getElementById('preview');
+    const ctx     = canvas.getContext('2d');
 
     const DEFAULTS = {
       contrast:   1.0,
       brightness: 1.0,
       saturation: 1.0,
-      sharpness:  1.0
+      sharpness:  1.0,
+      green_bias: 0.0
     };
 
     const clamp = v => Math.max(0, Math.min(255, v));
@@ -96,33 +91,26 @@
       return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16)} : null;
     }
 
-    // === Update displayed slider values ===
-    function updateSliderValues() {
-      ['contrast', 'brightness', 'saturation', 'sharpness'].forEach(id => {
-        document.getElementById(id + '_val').textContent = 
-          parseFloat(document.getElementById(id).value).toFixed(1);
-      });
-    }
-
     // === Ensure sliders & preview start at defaults ===
     window.addEventListener('DOMContentLoaded', () => {
       Object.entries(DEFAULTS).forEach(([id,val]) => {
         document.getElementById(id).value = val;
       });
-      updateSliderValues();
-      updatePreview();
+      updatePreview();           // <-- draw once with defaults
     });
 
     // === Core Preview Function ===
     const updatePreview = () => {
-      if (!currentImage) return;
+      if (!currentImage) return; // nothing to show yet
 
       const contrast   = parseFloat(document.getElementById('contrast').value);
       const brightness = parseFloat(document.getElementById('brightness').value);
       const saturation = parseFloat(document.getElementById('saturation').value);
-      const sharpness  = parseFloat(document.getElementById('sharpness').value); // placeholder
+      const sharpness  = parseFloat(document.getElementById('sharpness').value); // placeholder for backend use
+      const greenBias  = parseFloat(document.getElementById('green_bias').value);
       const resizeMode = document.querySelector('input[name="resizemode"]:checked').value;
 
+      // --- Resize (pad or crop) onto temp canvas ---
       const tmp = document.createElement('canvas');
       tmp.width = canvas.width; tmp.height = canvas.height;
       const tctx = tmp.getContext('2d');
@@ -133,15 +121,22 @@
       const dx = (cw - sw) / 2, dy = (ch - sh) / 2;
       tctx.drawImage(currentImage, dx, dy, sw, sh);
 
-      const imgData = tctx.getImageData(0,0,cw,ch);
-      const data    = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
+      // --- Pixel-level adjustments ---
+      const imgData = tctx.getImageData(0,0,cw,ch); const data = imgData.data;
+      for (let i=0;i<data.length;i+=4) {
         let r = data[i], g = data[i+1], b = data[i+2];
 
+        // contrast then brightness
         r = ((r-128)*contrast + 128) * brightness;
         g = ((g-128)*contrast + 128) * brightness;
         b = ((b-128)*contrast + 128) * brightness;
 
+        // inverted green bias: bigger slider = STRONGER bias
+        if (g > r / greenBias && g > b / greenBias) {
+          r = 0; g = 255; b = 0;
+        }
+
+        // saturation
         const avg = (r+g+b)/3;
         r = avg + (r-avg)*saturation;
         g = avg + (g-avg)*saturation;
@@ -151,25 +146,24 @@
         data[i+1] = clamp(g);
         data[i+2] = clamp(b);
       }
-      tctx.putImageData(imgData, 0, 0);
+      tctx.putImageData(imgData,0,0);
 
+      // --- Optional overlay text ---
       if (document.getElementById('show_overlay').checked) {
         const text = document.getElementById('overlay_text').value;
         const pos  = document.getElementById('overlay_position').value;
         const fs   = parseInt(document.getElementById('overlay_font_size').value);
         const rgb  = hexToRgb(document.getElementById('overlay_font_color').value);
-        tctx.font         = `${fs}px sans-serif`;
-        tctx.fillStyle    = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        tctx.font = `${fs}px sans-serif`;
+        tctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
         tctx.textBaseline = 'top';
         const txtW = tctx.measureText(text).width;
         let x = 10, y = 10;
         if (pos.includes('right'))  x = cw - txtW - 10;
         if (pos.includes('bottom')) y = ch - fs - 10;
-        tctx.shadowColor   = 'rgba(0,0,0,0.3)';
-        tctx.shadowOffsetX = 1;
-        tctx.shadowOffsetY = 1;
-        tctx.shadowBlur    = 1;
-        tctx.fillText(text, x, y);
+        tctx.shadowColor = 'rgba(0,0,0,0.3)';
+        tctx.shadowOffsetX = 1; tctx.shadowOffsetY = 1; tctx.shadowBlur = 1;
+        tctx.fillText(text,x,y);
       }
 
       ctx.clearRect(0,0,cw,ch);
@@ -177,22 +171,16 @@
     };
 
     // === Event wiring ===
-    const sliderIds = ['contrast','brightness','saturation','sharpness'];
+    const sliderIds = ['contrast','brightness','saturation','sharpness','green_bias'];
     [...sliderIds,'overlay_text','overlay_position','overlay_font_size','overlay_font_color','show_overlay']
-      .forEach(id => document.getElementById(id).addEventListener('input', () => {
-        updateSliderValues();
-        updatePreview();
-      }));
+      .forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
 
-    document.querySelectorAll('input[name="resizemode"]').forEach(r => 
-      r.addEventListener('change', updatePreview)
-    );
+    document.querySelectorAll('input[name="resizemode"]').forEach(r => r.addEventListener('change', updatePreview));
 
     document.getElementById('reset_sliders').addEventListener('click', () => {
       Object.entries(DEFAULTS).forEach(([id,val]) => {
         document.getElementById(id).value = val;
       });
-      updateSliderValues();
       updatePreview();
     });
 
@@ -222,42 +210,18 @@
       img.onload = () => { currentImage = img; updatePreview(); };
       img.src = `/uploads/${fname}`;
     }
-    document.getElementById('browse_images').addEventListener('change', e => 
-      loadSelectedImage(e.target.value)
-    );
+    document.getElementById('browse_images').addEventListener('change', e => loadSelectedImage(e.target.value));
     loadFileList();
 
     // --- Generate via backend ---
     document.getElementById('generate-form').addEventListener('submit', async e => {
       e.preventDefault();
-  
-      const generateButton = document.querySelector('#generate-form button');
-      generateButton.disabled = true;
-      const oldText = generateButton.textContent;
-      generateButton.textContent = 'Generating...';
-
-      let prompt = document.getElementById('prompt').value.trim();
-  
-      // Always inject hidden randomness
-      const randomTag = ` <!-- ${Math.random().toString(36).substring(7)} -->`;
-      prompt += randomTag;
-
-      const fd = new FormData();
-      fd.append('prompt', prompt);
-
-      try {
-        const res = await fetch('/generate', { method: 'POST', body: fd });
-        const data = await res.json();
-        if (data.filename) {
-          loadSelectedImage(data.filename);
-        } else {
-          alert('Error generating image.');
-        }
-      } catch (err) {
-        alert('Network error.');
-      } finally {
-        generateButton.disabled = false;
-        generateButton.textContent = oldText;
+      const prompt = document.getElementById('prompt').value;
+      const fd = new FormData(); fd.append('prompt',prompt);
+      const res = await fetch('/generate',{method:'POST',body:fd});
+      const data = await res.json();
+      if (data.filename) {
+        loadSelectedImage(data.filename);
       }
     });
 
@@ -266,20 +230,21 @@
       if (!currentImage) return alert('No image to send.');
       canvas.toBlob(async blob => {
         const fd = new FormData();
-        fd.append('image', blob, 'processed.png');
-        fd.append('contrast',  document.getElementById('contrast').value);
-        fd.append('sharpness', document.getElementById('sharpness').value);
-        fd.append('resizemode',
-          document.querySelector('input[name="resizemode"]:checked').value);
-
+        fd.append('image',blob,'processed.png');
+        // basic params (backend currently only uses some)
+        fd.append('contrast',document.getElementById('contrast').value);
+        fd.append('sharpness',document.getElementById('sharpness').value);
+        fd.append('green_bias',document.getElementById('green_bias').value);
+        fd.append('resizemode',document.querySelector('input[name="resizemode"]:checked').value);
+        // overlay (backend draws it) if checkbox unchecked
         if (!document.getElementById('show_overlay').checked) {
-          fd.append('show_overlay', 'on');
-          fd.append('overlay_text', document.getElementById('overlay_text').value);
-          fd.append('overlay_position', document.getElementById('overlay_position').value);
-          fd.append('overlay_font_size', document.getElementById('overlay_font_size').value);
-          fd.append('overlay_font_color', document.getElementById('overlay_font_color').value);
+          fd.append('show_overlay','on');
+          fd.append('overlay_text',document.getElementById('overlay_text').value);
+          fd.append('overlay_position',document.getElementById('overlay_position').value);
+          fd.append('overlay_font_size',document.getElementById('overlay_font_size').value);
+          fd.append('overlay_font_color',document.getElementById('overlay_font_color').value);
         }
-        await fetch('/', { method: 'POST', body: fd });
+        await fetch('/',{method:'POST',body:fd});
         alert('Image sent to display!');
       });
     });
