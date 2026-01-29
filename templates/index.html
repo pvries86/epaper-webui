@@ -4,285 +4,1082 @@
   <meta charset="UTF-8">
   <title>ePaper Web UI</title>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    canvas { border: 1px solid #aaa; display: block; margin-top: 10px; }
-    .form-group { margin-bottom: 1em; }
-    .slider-reset { margin-left: 1em; }
-    label > span { margin-left: 0.5em; color: #555; }
+    :root {
+      --bg: #050b18;
+      --bg-accent: radial-gradient(circle at 25% 20%, rgba(56,189,248,0.3), transparent 55%),
+                   radial-gradient(circle at 80% 0%, rgba(192,132,252,0.25), transparent 40%);
+      --surface: rgba(13, 22, 45, 0.78);
+      --elevated: rgba(19, 28, 55, 0.9);
+      --border: rgba(255,255,255,0.08);
+      --primary: #38bdf8;
+      --primary-dark: #0ea5e9;
+      --accent: #c084fc;
+      --text: #f1f5f9;
+      --muted: #8ea0c8;
+      --shadow: 0 25px 60px rgba(3, 10, 30, 0.6);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      background-image: var(--bg-accent);
+    }
+
+    .app-shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 48px 20px 60px;
+    }
+
+    .header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 1.3rem 0 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.25em;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.25em;
+      font-size: 0.72rem;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 3vw, 2.6rem);
+    }
+
+    .lede {
+      color: var(--muted);
+      margin: 0.2rem 0 0;
+      max-width: 620px;
+      line-height: 1.5;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1.4rem;
+      margin-bottom: 1.3rem;
+    }
+
+    @media (max-width: 1100px) {
+      .controls-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.6rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .controls-grid {
+        grid-template-columns: 1fr;
+        gap: 1.9rem;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.6rem;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card h2 span.icon {
+      font-size: 1.1rem;
+      color: var(--primary);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="color"],
+    select {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(7, 15, 32, 0.65);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      color: var(--muted);
+      padding: 0.4rem 0;
+    }
+
+    select option {
+      color: #091326;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+      margin: 0.4rem 0 1.1rem;
+    }
+
+    .slider-group label span {
+      font-weight: 400;
+      color: var(--muted);
+      margin-left: 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    .resizemode-options {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .resizemode-options label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .overlay-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+
+    .overlay-inline {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .overlay-inputs {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .overlay-inputs input[type="number"] {
+      flex: 1;
+    }
+
+    .color-swatch {
+      display: inline-flex;
+      padding: 0.15rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.5);
+    }
+
+    .color-swatch input[type="color"] {
+      appearance: none;
+      border: none;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      background: none;
+      cursor: pointer;
+    }
+
+    .color-swatch input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 999px;
+    }
+
+    .overlay-hint {
+      grid-column: 1 / -1;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin: 0.1rem 0 0;
+    }
+
+    .preview-card canvas.overlay-draggable {
+      cursor: grab;
+    }
+
+    .preview-card canvas.overlay-grabbing {
+      cursor: grabbing;
+    }
+
+    .form-row.compact {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.9rem;
+      align-items: end;
+    }
+
+    .card-heading-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 0.95rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #041024;
+      background: linear-gradient(120deg, var(--primary), var(--accent));
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+      width: 100%;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn:not(:disabled):hover {
+      transform: translateY(-1px);
+    }
+
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .prompt-presets {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      margin: 0.8rem 0 1rem;
+    }
+
+    .prompt-presets button {
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(8, 12, 26, 0.6);
+      color: var(--text);
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+
+    .prompt-presets button:hover {
+      background: rgba(56,189,248,0.2);
+    }
+
+    .status-line {
+      margin-top: 0.8rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .status-line span {
+      display: inline-block;
+    }
+
+
+    .preview-card {
+      background: var(--elevated);
+      position: relative;
+    }
+
+    .preview-card canvas {
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #111f3f;
+      display: block;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      opacity: 0;
+      transform: scale(0.98);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .preview-card canvas.preview-ready {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      z-index: 1000;
+    }
+
+    .toast {
+      min-width: 220px;
+      padding: 0.9rem 1.2rem;
+      border-radius: 14px;
+      background: rgba(8, 20, 32, 0.92);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      font-size: 0.9rem;
+      animation: slideIn 0.2s ease;
+    }
+
+    .toast.success { border-color: rgba(16, 185, 129, 0.4); }
+    .toast.error { border-color: rgba(248, 113, 113, 0.5); }
+    .toast-icon {
+      font-size: 1rem;
+      margin-right: 0.5rem;
+    }
+    .mobile-only { display: none; }
+    .desktop-send { display: block; }
+    .mobile-footer {
+      display: none;
+      position: sticky;
+      bottom: 0;
+      padding: 0.9rem 1.2rem 1.4rem;
+      background: linear-gradient(180deg, rgba(5,11,24,0), rgba(5,11,24,0.95));
+      backdrop-filter: blur(14px);
+      width: 100%;
+    }
+
+    @media (max-width: 1100px) {
+      .controls-grid {
+        gap: 2.2rem;
+      }
+      .mobile-only { display: block; }
+      .desktop-send { display: none; }
+      .mobile-footer { display: block; }
+    }
+
+    @media (max-width: 640px) {
+      .mobile-only { display: block; }
+      .desktop-send { display: none; }
+      .mobile-footer { display: block; }
+      .controls-grid {
+        gap: 2.6rem;
+      }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .progress-strip {
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      margin-bottom: 1rem;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .progress-strip.active {
+      opacity: 1;
+    }
+
+    .progress-strip span {
+      display: block;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(120deg, var(--primary), var(--accent));
+      animation: progressPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes progressPulse {
+      0% { transform: translateX(-50%); }
+      50% { transform: translateX(120%); }
+      100% { transform: translateX(220%); }
+    }
+
   </style>
 </head>
 <body>
-  <h1>ePaper Display Web UI</h1>
+  <div class="app-shell">
+    <header class="header">
+      <p class="eyebrow">Waveshare control</p>
+      <h1>ePaper Display Web UI</h1>
+      <p class="lede">Upload, fine-tune, or generate artwork - all in one streamlined space.</p>
+    </header>
+    <div id="global_progress" class="progress-strip"><span></span></div>
 
-  <div class="form-group">
-    <label for="image">Upload Image:</label>
-    <input type="file" id="image" accept="image/*">
+    <div class="section-heading"><span>Workflow</span><span>AI & adjustments</span></div>
+
+    <div class="controls-grid">
+      <section class="card">
+        <div class="card-heading-row">
+          <h2><span class="icon">📁</span>Images</h2>
+        </div>
+        <div class="form-row compact">
+          <div>
+            <label for="image">Upload image</label>
+            <input type="file" id="image" accept="image/*">
+          </div>
+          <div>
+            <label for="browse_images">Previous uploads</label>
+            <select id="browse_images"></select>
+          </div>
+        </div>
+        <button type="button" id="delete_image" class="btn" style="margin-top:0.8rem">Delete selected image</button>
+        <button type="button" id="take_photo_btn" class="btn mobile-only" style="margin-top:0.6rem">Take photo</button>
+        <input type="file" id="camera_capture" accept="image/*" capture="environment" style="display:none">
+      </section>
+
+      <section class="card">
+        <h2><span class="icon">✨</span>AI Generation</h2>
+        <form id="generate-form">
+          <label for="prompt">Prompt</label>
+          <input type="text" id="prompt" placeholder="Enter a prompt..." value="&#123;SUBJECT&#125; - minimalist screen-print poster, flat fills, bold black outlines, high-contrast shading, spot-colour palette of pure white, deep black, saturated fire-red (&#35;FF0000), bright canary-yellow (&#35;FFFF00) and strong royal-blue (&#35;0000FF) ONLY, no gradients or texture, clean vector style, 800&#215;480 composition, generous negative space, ultra-sharp focus">
+          <input type="hidden" id="preset_name" name="preset_name" value="Custom">
+          <input type="hidden" id="subject_name" name="subject_name" value="Subject">
+
+          <div class="prompt-presets">
+            <button type="button" data-preset="poster">Poster</button>
+            <button type="button" data-preset="typography">Typography</button>
+            <button type="button" data-preset="landscape">Landscape</button>
+            <button type="button" data-preset="architecture">Architecture</button>
+            <button type="button" data-preset="product">Product shot</button>
+            <button type="button" data-preset="infographic">Infographic</button>
+            <button type="button" data-preset="portrait">Portrait</button>
+            <button type="button" data-preset="doodle">Playful doodle</button>
+            <button type="button" id="palette_helper">Palette helper</button>
+          </div>
+
+          <label for="model_select" style="margin-top:1rem">Model</label>
+          <select id="model_select">
+            <option value="">Loading models...</option>
+          </select>
+
+          <button type="submit" class="btn" style="margin-top:1rem">Generate image</button>
+          <p class="subtle">A tiny random suffix is added to prompts to avoid cached generations.</p>
+          <div id="generate_status" class="status-line">
+            <span>Idle.</span>
+          </div>
+        </form>
+      </section>
+
+      <section class="card slider-group">
+        <h2><span class="icon">🎚️</span>Adjustments</h2>
+        <label for="contrast">Contrast <span id="contrast_val">1.0</span></label>
+        <input type="range" id="contrast" min="0.0" max="3.0" value="1.0" step="0.1">
+
+        <label for="brightness">Brightness <span id="brightness_val">1.0</span></label>
+        <input type="range" id="brightness" min="0.0" max="2.0" value="1.0" step="0.1">
+
+        <label for="saturation">Saturation <span id="saturation_val">1.0</span></label>
+        <input type="range" id="saturation" min="0.0" max="2.0" value="1.0" step="0.1">
+
+        <label for="sharpness">Sharpness <span id="sharpness_val">1.0</span></label>
+        <input type="range" id="sharpness" min="0.0" max="5.0" value="1.0" step="0.1">
+        <button type="button" id="reset_sliders" class="btn" style="margin-top:0.6rem">Reset adjustments</button>
+      </section>
+      <section class="card layout-card">
+        <h2><span class="icon">🖼️</span>Layout & Overlay</h2>
+        <label>Resize mode</label>
+        <div class="resizemode-options">
+          <label><input type="radio" name="resizemode" value="pad" checked> Pad</label>
+          <label><input type="radio" name="resizemode" value="crop"> Crop</label>
+        </div>
+
+        <label style="margin-top:1rem"><input type="checkbox" id="show_overlay"> Show overlay text</label>
+        <p class="subtle">Toggle to display overlay text in the browser preview.</p>
+
+        <div class="overlay-grid">
+          <div class="overlay-text-wrapper">
+            <label for="overlay_text">Text</label>
+            <input type="text" id="overlay_text" placeholder="Enter overlay text">
+          </div>
+          <div class="overlay-inline">
+            <label for="overlay_font_size">Font size / Color</label>
+            <div class="overlay-inputs">
+              <input type="number" id="overlay_font_size" value="18" min="8" max="72">
+              <label class="color-swatch">
+                <input type="color" id="overlay_font_color" value="#000000">
+              </label>
+            </div>
+          </div>
+          <p class="overlay-hint">Drag the text in the preview to reposition it anywhere on the canvas.</p>
+        </div>
+        <input type="hidden" id="overlay_x" value="10">
+        <input type="hidden" id="overlay_y" value="10">
+
+        <button id="send" class="btn desktop-send" style="margin-top:1.1rem">Send to display</button>
+      </section>
+    </div>
+
+    <div class="section-heading"><span>Output</span><span>Live preview</span></div>
+
+    <section class="card preview-card">
+      <h2><span class="icon">👁️</span>Live Preview</h2>
+      <canvas id="preview" width="800" height="480"></canvas>
+    </section>
   </div>
 
-  <div class="form-group">
-    <label for="browse_images">Or Select Previous:</label>
-    <select id="browse_images"></select>
+  <div class="mobile-footer">
+    <button id="send_mobile" class="btn">Send to display</button>
   </div>
-
-  <div class="form-group" id="slider-group">
-    <label>Contrast:
-      <input type="range" id="contrast" min="0.0" max="3.0" value="1.0" step="0.1">
-      <span id="contrast_val">1.0</span>
-    </label><br>
-    <label>Brightness:
-      <input type="range" id="brightness" min="0.0" max="2.0" value="1.0" step="0.1">
-      <span id="brightness_val">1.0</span>
-    </label><br>
-    <label>Saturation:
-      <input type="range" id="saturation" min="0.0" max="2.0" value="1.0" step="0.1">
-      <span id="saturation_val">1.0</span>
-    </label><br>
-    <label>Sharpness:
-      <input type="range" id="sharpness" min="0.0" max="5.0" value="1.0" step="0.1">
-      <span id="sharpness_val">1.0</span>
-    </label><br>
-    <button type="button" id="reset_sliders" class="slider-reset">Reset</button>
-  </div>
-
-  <div class="form-group">
-    <label>Resize Mode:</label>
-    <label><input type="radio" name="resizemode" value="pad" checked> Pad</label>
-    <label><input type="radio" name="resizemode" value="crop"> Crop</label>
-  </div>
-
-  <div class="form-group">
-    <label><input type="checkbox" id="show_overlay"> Show Overlay Text</label><br>
-    <input type="text" id="overlay_text" placeholder="Enter overlay text">
-    <select id="overlay_position">
-      <option value="top-left">Top Left</option>
-      <option value="top-right">Top Right</option>
-      <option value="bottom-left">Bottom Left</option>
-      <option value="bottom-right">Bottom Right</option>
-    </select>
-    <input type="number" id="overlay_font_size" value="18">
-    <input type="color" id="overlay_font_color" value="#000000">
-  </div>
-
-  <div class="form-group">
-    <button id="send">Send to Display</button>
-  </div>
-
-  <hr>
-  <h2>Generate Image with Prompt</h2>
-  <form id="generate-form">
-    <input type="text" id="prompt" placeholder="Enter a prompt..." value="&#123;SUBJECT&#125; &#8212; minimalist screen-print poster, flat fills, bold black outlines, high-contrast shading, spot-colour palette of pure white, deep black, saturated fire-red (&#35;FF0000), bright canary-yellow (&#35;FFFF00) and strong royal-blue (&#35;0000FF) ONLY, no gradients or texture, clean vector style, 800&#215;480 composition, generous negative space, ultra-sharp focus">
-    <button type="submit">Generate</button>
-  </form>
-
-  <canvas id="preview" width="800" height="480"></canvas>
 
   <script>
-    // === Global Elements & Helpers ===
     let currentImage = null;
     const canvas = document.getElementById('preview');
-    const ctx    = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
+    const modelSelect = document.getElementById('model_select');
+    const progressStrip = document.getElementById('global_progress');
+    const presetField = document.getElementById('preset_name');
+    const subjectField = document.getElementById('subject_name');
+    const CHIP_LABELS = ['Poster','Typography','Landscape','Architecture','Product','Infographic','Portrait','Doodle'];
+    const CHIP_SET = new Set(CHIP_LABELS.map(label => label.toLowerCase()));
 
     const DEFAULTS = {
-      contrast:   1.0,
+      contrast: 1.0,
       brightness: 1.0,
       saturation: 1.0,
-      sharpness:  1.0
+      sharpness: 1.0,
     };
 
-    const clamp = v => Math.max(0, Math.min(255, v));
+    const clamp = (v) => Math.max(0, Math.min(255, v));
+    let progressLocks = 0;
+    let overlayBox = null;
+    let isDraggingOverlay = false;
+    let dragOffset = { x: 0, y: 0 };
 
     function hexToRgb(hex) {
       const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16)} : null;
+      return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
     }
 
-    // === Update displayed slider values ===
     function updateSliderValues() {
-      ['contrast', 'brightness', 'saturation', 'sharpness'].forEach(id => {
-        document.getElementById(id + '_val').textContent = 
-          parseFloat(document.getElementById(id).value).toFixed(1);
+      ['contrast', 'brightness', 'saturation', 'sharpness'].forEach((id) => {
+        document.getElementById(id + '_val').textContent = parseFloat(document.getElementById(id).value).toFixed(1);
       });
     }
 
-    // === Ensure sliders & preview start at defaults ===
     window.addEventListener('DOMContentLoaded', () => {
-      Object.entries(DEFAULTS).forEach(([id,val]) => {
+      Object.entries(DEFAULTS).forEach(([id, val]) => {
         document.getElementById(id).value = val;
       });
       updateSliderValues();
       updatePreview();
+      syncSubjectField();
     });
 
-    // === Core Preview Function ===
     const updatePreview = () => {
       if (!currentImage) return;
-
-      const contrast   = parseFloat(document.getElementById('contrast').value);
+      const contrast = parseFloat(document.getElementById('contrast').value);
       const brightness = parseFloat(document.getElementById('brightness').value);
       const saturation = parseFloat(document.getElementById('saturation').value);
-      const sharpness  = parseFloat(document.getElementById('sharpness').value); // placeholder
+      const sharpness = parseFloat(document.getElementById('sharpness').value); // placeholder
       const resizeMode = document.querySelector('input[name="resizemode"]:checked').value;
 
       const tmp = document.createElement('canvas');
-      tmp.width = canvas.width; tmp.height = canvas.height;
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
       const tctx = tmp.getContext('2d');
-      const iw = currentImage.width, ih = currentImage.height;
-      const cw = tmp.width, ch = tmp.height;
-      const scale = (resizeMode === 'pad') ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
-      const sw = iw * scale, sh = ih * scale;
-      const dx = (cw - sw) / 2, dy = (ch - sh) / 2;
+      const iw = currentImage.width;
+      const ih = currentImage.height;
+      const cw = tmp.width;
+      const ch = tmp.height;
+      const scale = resizeMode === 'pad' ? Math.min(cw / iw, ch / ih) : Math.max(cw / iw, ch / ih);
+      const sw = iw * scale;
+      const sh = ih * scale;
+      const dx = (cw - sw) / 2;
+      const dy = (ch - sh) / 2;
       tctx.drawImage(currentImage, dx, dy, sw, sh);
 
-      const imgData = tctx.getImageData(0,0,cw,ch);
-      const data    = imgData.data;
+      const imgData = tctx.getImageData(0, 0, cw, ch);
+      const data = imgData.data;
       for (let i = 0; i < data.length; i += 4) {
-        let r = data[i], g = data[i+1], b = data[i+2];
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
 
-        r = ((r-128)*contrast + 128) * brightness;
-        g = ((g-128)*contrast + 128) * brightness;
-        b = ((b-128)*contrast + 128) * brightness;
+        r = ((r - 128) * contrast + 128) * brightness;
+        g = ((g - 128) * contrast + 128) * brightness;
+        b = ((b - 128) * contrast + 128) * brightness;
 
-        const avg = (r+g+b)/3;
-        r = avg + (r-avg)*saturation;
-        g = avg + (g-avg)*saturation;
-        b = avg + (b-avg)*saturation;
+        const avg = (r + g + b) / 3;
+        r = avg + (r - avg) * saturation;
+        g = avg + (g - avg) * saturation;
+        b = avg + (b - avg) * saturation;
 
-        data[i]   = clamp(r);
-        data[i+1] = clamp(g);
-        data[i+2] = clamp(b);
+        data[i] = clamp(r);
+        data[i + 1] = clamp(g);
+        data[i + 2] = clamp(b);
       }
       tctx.putImageData(imgData, 0, 0);
 
       if (document.getElementById('show_overlay').checked) {
         const text = document.getElementById('overlay_text').value;
-        const pos  = document.getElementById('overlay_position').value;
-        const fs   = parseInt(document.getElementById('overlay_font_size').value);
-        const rgb  = hexToRgb(document.getElementById('overlay_font_color').value);
-        tctx.font         = `${fs}px sans-serif`;
-        tctx.fillStyle    = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        const fs = parseInt(document.getElementById('overlay_font_size').value, 10) || 18;
+        const rgb = hexToRgb(document.getElementById('overlay_font_color').value) || { r: 0, g: 0, b: 0 };
+        const posX = parseInt(document.getElementById('overlay_x').value, 10) || 0;
+        const posY = parseInt(document.getElementById('overlay_y').value, 10) || 0;
+        tctx.font = `${fs}px sans-serif`;
+        tctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
         tctx.textBaseline = 'top';
         const txtW = tctx.measureText(text).width;
-        let x = 10, y = 10;
-        if (pos.includes('right'))  x = cw - txtW - 10;
-        if (pos.includes('bottom')) y = ch - fs - 10;
-        tctx.shadowColor   = 'rgba(0,0,0,0.3)';
+        const clampedX = Math.min(Math.max(posX, 0), cw - txtW);
+        const clampedY = Math.min(Math.max(posY, 0), ch - fs);
+        tctx.shadowColor = 'rgba(0,0,0,0.3)';
         tctx.shadowOffsetX = 1;
         tctx.shadowOffsetY = 1;
-        tctx.shadowBlur    = 1;
-        tctx.fillText(text, x, y);
+        tctx.shadowBlur = 1;
+        tctx.fillText(text, clampedX, clampedY);
+        overlayBox = { x: clampedX, y: clampedY, width: txtW, height: fs };
+        canvas.classList.add('overlay-draggable');
+      } else {
+        overlayBox = null;
+        canvas.classList.remove('overlay-draggable');
+        canvas.classList.remove('overlay-grabbing');
       }
 
-      ctx.clearRect(0,0,cw,ch);
-      ctx.drawImage(tmp,0,0);
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.drawImage(tmp, 0, 0);
+      canvas.classList.add('preview-ready');
     };
 
-    // === Event wiring ===
-    const sliderIds = ['contrast','brightness','saturation','sharpness'];
-    [...sliderIds,'overlay_text','overlay_position','overlay_font_size','overlay_font_color','show_overlay']
+    const getCanvasPointer = (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (evt.clientX - rect.left) * scaleX,
+        y: (evt.clientY - rect.top) * scaleY,
+      };
+    };
+
+    const stopOverlayDrag = () => {
+      isDraggingOverlay = false;
+      canvas.classList.remove('overlay-grabbing');
+    };
+
+    canvas.addEventListener('mousedown', (evt) => {
+      if (!document.getElementById('show_overlay').checked || !overlayBox) return;
+      const pt = getCanvasPointer(evt);
+      if (
+        pt.x >= overlayBox.x &&
+        pt.x <= overlayBox.x + overlayBox.width &&
+        pt.y >= overlayBox.y &&
+        pt.y <= overlayBox.y + overlayBox.height
+      ) {
+        isDraggingOverlay = true;
+        dragOffset = { x: pt.x - overlayBox.x, y: pt.y - overlayBox.y };
+        canvas.classList.add('overlay-grabbing');
+        evt.preventDefault();
+      }
+    });
+
+    canvas.addEventListener('mousemove', (evt) => {
+      if (!isDraggingOverlay || !overlayBox) return;
+      const pt = getCanvasPointer(evt);
+      const newX = Math.min(Math.max(pt.x - dragOffset.x, 0), canvas.width - overlayBox.width);
+      const newY = Math.min(Math.max(pt.y - dragOffset.y, 0), canvas.height - overlayBox.height);
+      document.getElementById('overlay_x').value = Math.round(newX);
+      document.getElementById('overlay_y').value = Math.round(newY);
+      updatePreview();
+    });
+
+    canvas.addEventListener('mouseup', stopOverlayDrag);
+    canvas.addEventListener('mouseleave', stopOverlayDrag);
+
+    document.getElementById('prompt').addEventListener('input', syncSubjectField);
+
+    ['contrast','brightness','saturation','sharpness','overlay_text','overlay_font_size','overlay_font_color','show_overlay']
       .forEach(id => document.getElementById(id).addEventListener('input', () => {
         updateSliderValues();
         updatePreview();
       }));
 
-    document.querySelectorAll('input[name="resizemode"]').forEach(r => 
-      r.addEventListener('change', updatePreview)
-    );
+    document.querySelectorAll('input[name="resizemode"]').forEach((r) => r.addEventListener('change', updatePreview));
 
     document.getElementById('reset_sliders').addEventListener('click', () => {
-      Object.entries(DEFAULTS).forEach(([id,val]) => {
+      Object.entries(DEFAULTS).forEach(([id, val]) => {
         document.getElementById(id).value = val;
       });
       updateSliderValues();
       updatePreview();
     });
 
-    // --- Image file upload ---
-    document.getElementById('image').addEventListener('change', e => {
-      const f = e.target.files[0]; if (!f) return;
+    async function uploadOriginalFile(file) {
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('image', file);
+      try {
+        const res = await fetch('/upload_file', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (res.ok && data.filename) {
+          await loadFileList(data.filename);
+        }
+      } catch (err) {
+        console.error('Upload failed', err);
+      }
+    }
+
+    function loadFileToCanvas(file) {
+      if (!file) return;
+      canvas.classList.remove('preview-ready');
       const reader = new FileReader();
-      reader.onload = ev => {
+      reader.onload = (ev) => {
         const img = new Image();
-        img.onload = () => { currentImage = img; updatePreview(); };
+        img.onload = () => {
+          currentImage = img;
+          updatePreview();
+        };
         img.src = ev.target.result;
       };
-      reader.readAsDataURL(f);
-    });
+      reader.readAsDataURL(file);
+      uploadOriginalFile(file);
+    }
 
-    // --- Populate dropdown with uploaded images ---
-    async function loadFileList() {
+    const uploadInput = document.getElementById('image');
+    const deleteButton = document.getElementById('delete_image');
+    uploadInput.addEventListener('change', (e) => loadFileToCanvas(e.target.files[0]));
+
+    const cameraInput = document.getElementById('camera_capture');
+    const takePhotoBtn = document.getElementById('take_photo_btn');
+    if (cameraInput) {
+      cameraInput.addEventListener('change', (e) => loadFileToCanvas(e.target.files[0]));
+    }
+    if (takePhotoBtn && cameraInput) {
+      takePhotoBtn.addEventListener('click', () => cameraInput.click());
+    }
+
+    function formatFilenameLabel(name) {
+      const match = /^(\d{8}-\d{6})[-_](.+)$/.exec(name);
+      if (!match) return name;
+      const [_, ts, rest] = match;
+      const formatted = `${ts.slice(0,4)}-${ts.slice(4,6)}-${ts.slice(6,8)} ${ts.slice(9,11)}:${ts.slice(11,13)}`;
+      return `${formatted} - ${rest}`;
+    }
+
+    async function loadModelChoices() {
+      try {
+        const res = await fetch('/hf_models');
+        const data = await res.json();
+        const models = data.models || [];
+        if (!models.length) throw new Error('No models configured');
+        modelSelect.innerHTML = models.map((m) => `<option value="${m.id}">${m.label || m.id}</option>`).join('');
+        const initial = data.default || models[0].id;
+        modelSelect.value = initial;
+      } catch (err) {
+        modelSelect.innerHTML = '<option value="">No models configured</option>';
+      }
+    }
+
+    function setDeleteButtonState(enabled) {
+      if (deleteButton) deleteButton.disabled = !enabled;
+    }
+
+    async function loadFileList(selectedName) {
       const res = await fetch('/list_uploads');
       const files = await res.json();
       const sel = document.getElementById('browse_images');
-      sel.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join('');
-      if (files.length) loadSelectedImage(files[0]);
+      sel.innerHTML = files.map((f) => `<option value="${f}">${formatFilenameLabel(f)}</option>`).join('');
+      setDeleteButtonState(files.length > 0);
+      if (files.length) {
+        const target = selectedName && files.includes(selectedName) ? selectedName : files[0];
+        sel.value = target;
+        loadSelectedImage(target);
+      } else {
+        currentImage = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.classList.remove('preview-ready');
+      }
     }
 
     function loadSelectedImage(fname) {
       const img = new Image();
-      img.onload = () => { currentImage = img; updatePreview(); };
+      img.onload = () => {
+        currentImage = img;
+        updatePreview();
+      };
       img.src = `/uploads/${fname}`;
+      canvas.classList.remove('preview-ready');
     }
-    document.getElementById('browse_images').addEventListener('change', e => 
-      loadSelectedImage(e.target.value)
-    );
-    loadFileList();
 
-    // --- Generate via backend ---
-    document.getElementById('generate-form').addEventListener('submit', async e => {
+    document.getElementById('browse_images').addEventListener('change', (e) => loadSelectedImage(e.target.value));
+
+    function setDeleteLoading(isLoading, originalText) {
+      if (!deleteButton) return;
+      deleteButton.disabled = isLoading;
+      if (isLoading) {
+        deleteButton.dataset.label = originalText || deleteButton.textContent;
+        deleteButton.textContent = 'Deleting...';
+      } else {
+        deleteButton.textContent = deleteButton.dataset.label || 'Delete selected image';
+      }
+    }
+
+    if (deleteButton) {
+      deleteButton.addEventListener('click', async () => {
+        const sel = document.getElementById('browse_images');
+        const fname = sel.value;
+        if (!fname) return;
+        if (!confirm(`Delete ${fname}?`)) return;
+        setDeleteLoading(true, deleteButton.textContent);
+        try {
+          const res = await fetch('/delete_upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: fname })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            showToast('Image deleted', 'success');
+            await loadFileList();
+          } else {
+            const message = data.error || 'Failed to delete image.';
+            alert(message);
+          }
+        } catch (err) {
+          alert(`Network error: ${err.message || err}`);
+        } finally {
+          setDeleteLoading(false);
+        }
+      });
+    }
+
+    loadFileList();
+    loadModelChoices();
+
+    function normalizeDashes(value) {
+      return value.replace(/—/g, '-');
+    }
+
+    function stripChipPrefix(rawValue) {
+      const normalized = normalizeDashes(rawValue).trim();
+      const dashIndex = normalized.indexOf(' - ');
+      if (dashIndex >= 0) {
+        const prefix = normalized.slice(0, dashIndex).trim().toLowerCase();
+        if (CHIP_SET.has(prefix)) {
+          return normalized.slice(dashIndex + 3).trim();
+        }
+      }
+      return normalized;
+    }
+
+    function extractSubject(rawValue) {
+      const value = stripChipPrefix(rawValue);
+      if (!value) return '{SUBJECT}';
+      const dashIndex = value.indexOf(' - ');
+      let subject = dashIndex >= 0 ? value.slice(0, dashIndex).trim() : value.split('.')[0].trim();
+      if (!subject) subject = '{SUBJECT}';
+      return subject;
+    }
+
+    function syncSubjectField() {
+      if (!subjectField) return;
+      const subject = extractSubject(document.getElementById('prompt').value);
+      subjectField.value = subject.replace(/[{}`]/g, '').trim() || 'Subject';
+    }
+
+    function applyPresetPrompt(type) {
+      const promptInput = document.getElementById('prompt');
+      const subject = extractSubject(promptInput.value);
+      const presets = {
+        poster: '{SUBJECT} - bold minimalist poster, thick outlines, dramatic negative space, screen-print vibe, landscape 800x480.',
+        typography: '{SUBJECT} - graphic typography layout, sans-serif lettering, tight kerning, white background, black letters with bright accent strokes, 800x480 composition.',
+        landscape: '{SUBJECT} - stylized landscape illustration, simple geometric layers, high contrast, wide framing, clean vector style.',
+        architecture: '{SUBJECT} - brutalist building illustration, sharp angles, heavy black lines on white, selective accent colour, widescreen 800x480.',
+        product: '{SUBJECT} - hero product render, centered object on pure white background, dramatic top lighting, crisp contour, poster-ready 800x480.',
+        infographic: '{SUBJECT} - minimalist infographic, clean grids, labeled sections, white canvas, black vector icons, balanced negative space.',
+        portrait: '{SUBJECT} - stylized portrait bust, bold contour lines, white background, graphic shading, selective highlights, 800x480.',
+        doodle: '{SUBJECT} - playful hand-drawn doodle, thick black marker lines, sparse white background, pops of colour, offbeat composition.'
+      };
+      const chipLabel = type.charAt(0).toUpperCase() + type.slice(1);
+      const template = presets[type] || stripChipPrefix(promptInput.value);
+      const body = template.replace(/\{SUBJECT\}/g, subject);
+      promptInput.value = body;
+      if (presetField) presetField.value = chipLabel;
+      syncSubjectField();
+      updatePreview();
+    }
+
+    document.querySelectorAll('.prompt-presets button[data-preset]').forEach(btn => {
+      btn.addEventListener('click', () => applyPresetPrompt(btn.dataset.preset));
+    });
+
+    document.getElementById('palette_helper').addEventListener('click', () => {
+      const snippet = ' // keep colours within six-colour ePaper palette (white, black, red, green, blue, yellow), solid fills only, no gradients.';
+      const promptInput = document.getElementById('prompt');
+      if (!promptInput.value.includes('six-colour ePaper palette')) {
+        promptInput.value = `${promptInput.value.trim()}${snippet}`;
+      }
+    });
+
+    function updateStatus(text) {
+      const el = document.getElementById('generate_status');
+      if (el) el.textContent = text;
+    }
+
+    const toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icon = type === 'success' ? '✅' : '⚠️';
+      toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function pushProgress() {
+      if (!progressStrip) return;
+      progressLocks += 1;
+      progressStrip.classList.add('active');
+    }
+
+    function popProgress() {
+      if (!progressStrip) return;
+      progressLocks = Math.max(0, progressLocks - 1);
+      if (progressLocks === 0) {
+        progressStrip.classList.remove('active');
+      }
+    }
+
+    document.getElementById('generate-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-  
       const generateButton = document.querySelector('#generate-form button');
       generateButton.disabled = true;
       const oldText = generateButton.textContent;
       generateButton.textContent = 'Generating...';
+      updateStatus('Generating image...');
+      pushProgress();
 
       let prompt = document.getElementById('prompt').value.trim();
-  
-      // Always inject hidden randomness
       const randomTag = ` <!-- ${Math.random().toString(36).substring(7)} -->`;
       prompt += randomTag;
 
       const fd = new FormData();
       fd.append('prompt', prompt);
+      if (modelSelect.value) {
+        fd.append('model', modelSelect.value);
+      }
+      if (presetField) {
+        fd.append('preset_name', presetField.value || 'Custom');
+      }
+      if (subjectField) {
+        fd.append('subject_name', subjectField.value || '');
+      }
 
       try {
         const res = await fetch('/generate', { method: 'POST', body: fd });
         const data = await res.json();
-        if (data.filename) {
+        if (res.ok && data.filename) {
           loadSelectedImage(data.filename);
+          await loadFileList(data.filename);
+          updateStatus(`Generated ${data.filename}`);
+          showToast('Image generated', 'success');
         } else {
-          alert('Error generating image.');
+          const message = data.error || 'Error generating image.';
+          alert(`Error generating image: ${message}`);
+          updateStatus(`Failed: ${message}`);
+          showToast(message, 'error');
         }
       } catch (err) {
-        alert('Network error.');
+        alert(`Network error: ${err.message || err}`);
+        updateStatus(`Network error: ${err.message || err}`);
+        showToast('Network error while generating', 'error');
       } finally {
         generateButton.disabled = false;
         generateButton.textContent = oldText;
+        popProgress();
       }
     });
 
-    // --- Send to display ---
-    document.getElementById('send').addEventListener('click', () => {
-      if (!currentImage) return alert('No image to send.');
-      canvas.toBlob(async blob => {
+    function sendToDisplay() {
+      if (!currentImage) {
+        alert('No image to send.');
+        return;
+      }
+      pushProgress();
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          popProgress();
+          return;
+        }
         const fd = new FormData();
         fd.append('image', blob, 'processed.png');
-        fd.append('contrast',  document.getElementById('contrast').value);
+        fd.append('contrast', document.getElementById('contrast').value);
         fd.append('sharpness', document.getElementById('sharpness').value);
-        fd.append('resizemode',
-          document.querySelector('input[name="resizemode"]:checked').value);
+        fd.append('resizemode', document.querySelector('input[name="resizemode"]:checked').value);
 
         if (!document.getElementById('show_overlay').checked) {
           fd.append('show_overlay', 'on');
           fd.append('overlay_text', document.getElementById('overlay_text').value);
-          fd.append('overlay_position', document.getElementById('overlay_position').value);
           fd.append('overlay_font_size', document.getElementById('overlay_font_size').value);
           fd.append('overlay_font_color', document.getElementById('overlay_font_color').value);
+          fd.append('overlay_x', document.getElementById('overlay_x').value);
+          fd.append('overlay_y', document.getElementById('overlay_y').value);
         }
-        await fetch('/', { method: 'POST', body: fd });
-        alert('Image sent to display!');
+
+        try {
+          const res = await fetch('/', { method: 'POST', body: fd });
+          if (res.ok) {
+            showToast('Image sent to display', 'success');
+            await loadFileList();
+          } else {
+            showToast('Failed to send image', 'error');
+          }
+        } catch (err) {
+          showToast('Network error while sending', 'error');
+        } finally {
+          popProgress();
+        }
       });
-    });
+    }
+
+    document.getElementById('send').addEventListener('click', sendToDisplay);
+    const sendMobile = document.getElementById('send_mobile');
+    if (sendMobile) sendMobile.addEventListener('click', sendToDisplay);
   </script>
 </body>
 </html>
